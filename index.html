@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Посещаемость группы</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--tx:#1a1f26;--mut:#6b7280;--br:#e1e5ea;--ac:#2563eb;--act:#fff;--ok:#16a34a;--no:#dc2626;--sk:#d97706;--nob:#fde4e4;--skb:#fdf0d9;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171c;--card:#1d2128;--tx:#e8ebef;--mut:#9aa3af;--br:#2c323b;--ac:#5b8cff;--nob:#4a2328;--skb:#4a3a1e}}
+:root[data-theme="dark"]{--bg:#14171c;--card:#1d2128;--tx:#e8ebef;--mut:#9aa3af;--br:#2c323b;--ac:#5b8cff;--nob:#4a2328;--skb:#4a3a1e}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background-color:var(--bg)}
+.wrap{max-width:900px;margin:0 auto;padding:12px}
+h1{font-size:20px;margin:4px 0 12px}
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tabs button{flex:1;padding:10px 4px;border:1px solid var(--br);background:var(--card);color:var(--tx);border-radius:10px;font-size:15px}
+.tabs button.on{background:var(--ac);color:var(--act);border-color:var(--ac)}
+.card{background:var(--card);border:1px solid var(--br);border-radius:12px;padding:12px;margin-bottom:12px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+input,select,textarea,.btn{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--br);border-radius:8px;padding:8px 10px}
+textarea{width:100%;min-height:200px}
+.btn{cursor:pointer;background:var(--ac);color:var(--act);border-color:var(--ac)}
+.btn.sec{background:var(--card);color:var(--tx);border-color:var(--br)}
+.mut{color:var(--mut);font-size:14px}
+.ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.ph b{font-size:16px}
+.st{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--br)}
+.st .nm{flex:1;min-width:0;padding-right:8px}
+.seg{display:flex;gap:4px}
+.seg button{width:50px;height:38px;border:1px solid var(--br);background:var(--bg);color:var(--mut);border-radius:8px;font-size:15px;font-weight:600}
+.seg button.on.p{background:var(--ok);color:#fff;border-color:var(--ok)}
+.seg button.on.n{background:var(--no);color:#fff;border-color:var(--no)}
+.seg button.on.b{background:var(--sk);color:#fff;border-color:var(--sk)}
+.scroll{overflow-x:auto;max-width:100%}
+table{border-collapse:collapse;font-size:14px;width:max-content}
+th,td{border:1px solid var(--br);padding:4px 6px;text-align:center;white-space:nowrap}
+th{background:var(--card);font-weight:600}
+td:first-child,th:first-child{position:sticky;left:0;background:var(--card);text-align:left;z-index:1}
+td.n{background:var(--nob);color:var(--no);font-weight:700}td.b{background:var(--skb);color:var(--sk);font-weight:700}
+th .sj{writing-mode:vertical-rl;font-weight:400;font-size:12px;color:var(--mut);max-height:90px;overflow:hidden;margin:2px auto 0}
+.warn{background:var(--skb);color:var(--tx);padding:8px 10px;border-radius:8px;margin-bottom:12px;font-size:14px}
+</style></head><body><div class="wrap">
+<h1>📋 Посещаемость группы</h1>
+<div id="warn"></div>
+<div class="tabs" id="tabs"></div>
+<div id="view"></div>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const fmt=s=>s.slice(8,10)+'.'+s.slice(5,7)+'.'+s.slice(2,4);
+const short=s=>s.slice(8,10)+'.'+s.slice(5,7);
+const LS=(k,v)=>{try{if(v===undefined)return JSON.parse(localStorage.getItem(k));localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}};
+let db=null,canWrite=true,tab='mark',cfg={students:[],subjects:[]},days={};
+const now=new Date();
+let date=iso(now),rFrom=iso(new Date(now.getFullYear(),now.getMonth(),1)),rTo=iso(new Date(now.getFullYear(),now.getMonth()+1,0)),rSubj='';
+const timers={};let delAsk=null,newFor=null;
+function toast(m){let t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';t.style.cssText='position:fixed;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--tx);color:var(--bg);padding:12px;border-radius:10px;z-index:9;text-align:center';document.body.appendChild(t)}t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>{t.style.display='none'},3500)}
+window.alert=m=>toast(m);
+
+const SB_URL='ВСТАВЬТЕ_PROJECT_URL',SB_KEY='ВСТАВЬТЕ_ANON_KEY';
+const H={apikey:SB_KEY,Authorization:'Bearer '+SB_KEY,'Content-Type':'application/json'};
+const dirty=new Set();let lastSig='';
+async function sb(path,opt){
+  const r=await fetch(SB_URL+'/rest/v1/'+path,Object.assign({headers:H},opt));
+  const t=await r.text();if(!r.ok)throw new Error(r.status+' '+t);
+  return t?JSON.parse(t):null;
+}
+const UP={...H,Prefer:'resolution=merge-duplicates,return=minimal'};
+async function load(){
+  if(dirty.size)return;
+  try{
+    const rows=await sb('kv?select=id,data');
+    if(dirty.size)return;
+    const m={};let c=null;
+    rows.forEach(r=>{if(r.id==='config')c=r.data;else if(r.id.startsWith('day:'))m[r.id.slice(4)]=r.data});
+    $('#warn').innerHTML='';
+    const sig=JSON.stringify([c,m]);if(sig===lastSig)return;lastSig=sig;
+    cfg=Object.assign({students:[],subjects:[]},c||{});days=m;render();
+  }catch(e){$('#warn').innerHTML='<div class="warn">Нет связи с базой: '+esc(e.message)+'</div>'}
+}
+function init(){load();setInterval(load,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()})}
+function saveCfg(){
+  dirty.add('cfg');
+  sb('kv',{method:'POST',headers:UP,body:JSON.stringify({id:'config',data:cfg})})
+    .catch(e=>alert('Ошибка сохранения: '+e.message)).finally(()=>{dirty.delete('cfg');lastSig=''});
+}
+function saveDay(d){
+  clearTimeout(timers[d]);dirty.add(d);
+  timers[d]=setTimeout(()=>{
+    const v=days[d];const empty=!v||!v.pairs.length;
+    const p=empty?sb('kv?id=eq.'+encodeURIComponent('day:'+d),{method:'DELETE',headers:UP})
+      :sb('kv',{method:'POST',headers:UP,body:JSON.stringify({id:'day:'+d,data:v})});
+    p.catch(e=>alert('Ошибка сохранения: '+e.message)).finally(()=>{dirty.delete(d);lastSig=''});
+  },350);
+}
+function editDay(fn){
+  if(!canWrite)return;
+  const day=JSON.parse(JSON.stringify(days[date]||{pairs:[]}));
+  fn(day);days[date]=day;render();saveDay(date);
+}
+function render(){
+  if(tab==='cfg'&&document.activeElement&&document.activeElement.tagName==='TEXTAREA')return;
+  $('#tabs').innerHTML=[['mark','Отметка'],['rep','Отчёт'],['cfg','Группа']].map(([k,t])=>`<button class="${tab===k?'on':''}" data-t="${k}">${t}</button>`).join('');
+  $('#view').innerHTML=tab==='mark'?vMark():tab==='rep'?vRep():vCfg();
+}
+function vMark(){
+  if(!cfg.students.length||!cfg.subjects.length)return '<div class="card">Сначала заполните вкладку <b>«Группа»</b>: список студентов и предметов.</div>';
+  const day=days[date]||{pairs:[]};
+  const pairs=[...day.pairs].sort((a,b)=>a.n-b.n);
+  const nextN=pairs.length?Math.min(8,Math.max(...pairs.map(p=>p.n))+1):1;
+  let h=`<div class="card"><div class="row"><button class="btn sec" data-act="prev">←</button><input type="date" id="date" value="${date}"><button class="btn sec" data-act="next">→</button></div>
+  <div class="row" style="margin-top:10px"><select id="pn">${[1,2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===nextN?'selected':''}>${n} пара</option>`).join('')}</select>
+  <select id="ps" style="flex:1;min-width:0">${cfg.subjects.map(s=>`<option>${esc(s)}</option>`).join('')}</select>
+  <button class="btn" data-act="addp">Добавить</button></div>
+  <div class="row" style="margin-top:10px"><button class="btn sec" data-act="sched">📅 Заполнить по расписанию</button></div></div>`;
+  if(!pairs.length)h+='<div class="card mut">На эту дату пар ещё нет. Добавьте пару выше.</div>';
+  pairs.forEach(p=>{
+    const abs=cfg.students.filter(s=>p.marks[s]).length;
+    h+=`<div class="card"><div class="ph"><b>${p.n} пара${p.cancel?' · '+esc(p.cancel):''}</b><button class="btn sec" data-act="delp" data-p="${p.id}" ${delAsk===p.id?'style="background:var(--no);color:#fff;border-color:var(--no)"':''}>${delAsk===p.id?'Точно удалить?':'Удалить'}</button></div>
+    <div class="row" style="margin-bottom:6px"><select class="ps2" data-p="${p.id}" style="flex:1;min-width:0">${subjOpts(p.subject)}</select><select class="pc" data-p="${p.id}"><option value="" ${!p.cancel?'selected':''}>Идёт</option><option ${p.cancel==='Отменена'?'selected':''}>Отменена</option><option ${p.cancel==='Отменена (ВПР)'?'selected':''}>Отменена (ВПР)</option></select></div>${newFor===p.id?`<div class="row" style="margin-bottom:6px"><input id="ns" placeholder="Название предмета" style="flex:1;min-width:0"><button class="btn" data-act="nsok" data-p="${p.id}">OK</button></div>`:''}${p.was&&p.was!==p.subject?`<div class="mut" style="margin-bottom:4px">По расписанию было: ${esc(p.was)}</div>`:''}
+    ${p.cancel?'':`<div class="mut" style="margin-bottom:4px">Присутствуют: ${cfg.students.length-abs} из ${cfg.students.length}</div>`}`;
+    if(p.cancel){h+='<div class="mut">Пара не засчитывается в посещаемость.</div></div>';return}
+    cfg.students.forEach((s,i)=>{
+      const m=p.marks[s]||'';
+      h+=`<div class="st"><div class="nm">${i+1}. ${esc(s)}</div><div class="seg" data-p="${p.id}" data-i="${i}">
+      <button class="p ${m===''?'on':''}" data-m="">✓</button><button class="b ${m==='б'?'on':''}" data-m="б">У/П</button><button class="n ${m==='н'?'on':''}" data-m="н">Н/П</button></div></div>`;
+    });
+    h+='</div>';
+  });
+  return h+'<div class="mut">✓ был · У/П — не был по уважительной причине · Н/П — не был без уважительной причины</div>';
+}
+function cols(){
+  const c=[];
+  Object.keys(days).sort().forEach(d=>{if(d<rFrom||d>rTo)return;
+    [...days[d].pairs].sort((a,b)=>a.n-b.n).forEach(p=>{if(!p.cancel&&(!rSubj||p.subject===rSubj))c.push({d,p})})});
+  return c;
+}
+function stats(c){
+  return cfg.students.map(s=>{
+    let n=0,b=0;c.forEach(x=>{const m=x.p.marks[s];if(m==='н')n++;else if(m==='б')b++});
+    const t=c.length;return{s,n,b,miss:n+b,pct:t?Math.round((t-n-b)/t*100):100};
+  });
+}
+function vRep(){
+  const c=cols(),st=stats(c);
+  let h=`<div class="card"><div class="row"><span class="mut">С</span><input type="date" id="rf" value="${rFrom}"><span class="mut">по</span><input type="date" id="rt" value="${rTo}"></div>
+  <div class="row" style="margin-top:8px"><button class="btn sec" data-act="mcur">Этот месяц</button><button class="btn sec" data-act="mprev">Прошлый месяц</button>
+  <select id="rs"><option value="">Все предметы</option>${cfg.subjects.map(s=>`<option ${s===rSubj?'selected':''}>${esc(s)}</option>`).join('')}</select></div>
+  <div class="row" style="margin-top:8px"><button class="btn" data-act="csv">Скачать CSV (Excel)</button><span class="mut">Пар: ${c.length}</span></div></div>`;
+  if(!c.length)return h+'<div class="card mut">За выбранный период отметок нет.</div>';
+  h+='<div class="card scroll"><table><tr><th>Студент</th>'+c.map(x=>`<th title="${esc(x.p.subject)}">${short(x.d)}<br>${x.p.n}п<div class="sj">${esc(x.p.subject)}</div></th>`).join('')+'<th>Пропусков</th><th>Н/П</th><th>У/П</th><th>Посещ.</th></tr>';
+  st.forEach((r,i)=>{
+    h+=`<tr><td>${i+1}. ${esc(r.s)}</td>`+c.map(x=>{const m=x.p.marks[r.s];return `<td class="${m==='н'?'n':m==='б'?'b':''}">${m==='н'?'Н/П':m==='б'?'У/П':'·'}</td>`}).join('')+`<td><b>${r.miss}</b></td><td>${r.n}</td><td>${r.b}</td><td>${r.pct}%</td></tr>`;
+  });
+  return h+'</table></div>';
+}
+function vCfg(){
+  return `<div class="card"><b>Студенты</b><div class="mut" style="margin:4px 0">По одному на строке. Если переименуете студента, его старые отметки не перенесутся.</div>
+  <textarea id="cs">${esc(cfg.students.join('\n'))}</textarea></div>
+  <div class="card"><b>Предметы</b><div class="mut" style="margin:4px 0">По одному на строке.</div><textarea id="cj" style="min-height:120px">${esc(cfg.subjects.join('\n'))}</textarea></div>
+  <button class="btn" data-act="savecfg" ${canWrite?'':'disabled'}>Сохранить</button>
+  <div class="card" style="margin-top:12px"><b>Какая сейчас неделя по расписанию?</b><div class="mut" style="margin:4px 0">Нужно, чтобы кнопка «Заполнить по расписанию» знала, какую неделю брать.</div>
+  <select id="wk"><option value="">— выберите —</option><option value="1" ${weekOf(iso(now))===1?'selected':''}>1 неделя</option><option value="2" ${weekOf(iso(now))===2?'selected':''}>2 неделя</option></select></div>`;
+}
+function mondayOf(s){const d=new Date(s+'T00:00:00');d.setDate(d.getDate()-(d.getDay()+6)%7);return d}
+function weekOf(s){if(!cfg.w1)return 0;const diff=Math.round((mondayOf(s)-new Date(cfg.w1+'T00:00:00'))/6048e5);return ((diff%2)+2)%2===0?1:2}
+function fillSched(){
+  const w=weekOf(date);
+  if(!w){alert('Сначала на вкладке «Группа» укажите, какая сейчас неделя.');return}
+  const dow=(new Date(date+'T00:00:00').getDay()+6)%7+1;
+  const items=(cfg.schedule&&cfg.schedule[w]&&cfg.schedule[w][dow])||[];
+  if(!items.length){alert('По расписанию в этот день ('+w+' неделя) пар нет.');return}
+  editDay(d=>{items.forEach((it,i)=>{if(!d.pairs.some(p=>p.n===it.n&&p.subject===it.s))d.pairs.push({id:'p'+Date.now().toString(36)+i,n:it.n,subject:it.s,marks:{}})})});
+}
+function subjOpts(cur){return [...new Set([cur,...cfg.subjects])].map(s=>`<option ${s===cur?'selected':''}>${esc(s)}</option>`).join('')+'<option value="__new">➕ Другой предмет…</option>'}
+function lines(id){return [...new Set($(id).value.split('\n').map(s=>s.trim()).filter(Boolean))]}
+function shiftDate(k){const d=new Date(date+'T00:00:00');d.setDate(d.getDate()+k);date=iso(d);render()}
+function setMonth(off){const y=now.getFullYear(),m=now.getMonth()+off;rFrom=iso(new Date(y,m,1));rTo=iso(new Date(y,m+1,0));render()}
+async function csv(){
+  const c=cols(),st=stats(c),q=s=>'"'+String(s).replace(/"/g,'""')+'"';
+  const head=['Студент',...c.map(x=>fmt(x.d)+' '+x.p.n+'п '+x.p.subject),'Пропусков','Н/П','У/П','Посещаемость %'];
+  const rows=st.map((r,i)=>[(i+1)+'. '+r.s,...c.map(x=>{const m=x.p.marks[r.s];return m==='н'?'Н/П':m==='б'?'У/П':''}),r.miss,r.n,r.b,r.pct]);
+  const data='\uFEFF'+[head,...rows].map(r=>r.map(q).join(';')).join('\r\n');
+  const u=URL.createObjectURL(new Blob([data],{type:'text/csv;charset=utf-8'}));
+  const l=document.createElement('a');l.href=u;l.download='посещаемость_'+rFrom+'_'+rTo+'.csv';document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)
+}
+document.addEventListener('click',e=>{
+  const t=e.target.closest('button');if(!t)return;
+  if(t.dataset.t){tab=t.dataset.t;render();return}
+  const seg=t.closest('.seg');
+  if(seg){const p=seg.dataset.p,s=cfg.students[+seg.dataset.i],m=t.dataset.m;
+    editDay(d=>{const pr=d.pairs.find(x=>x.id===p);if(m)pr.marks[s]=m;else delete pr.marks[s]});return}
+  const a=t.dataset.act;if(!a)return;
+  if(a==='prev')shiftDate(-1);else if(a==='next')shiftDate(1);
+  else if(a==='addp'){const n=+$('#pn').value,subject=$('#ps').value;
+    editDay(d=>d.pairs.push({id:'p'+Date.now().toString(36),n,subject,marks:{}}))}
+  else if(a==='delp'){const id=t.dataset.p;
+    if(delAsk===id){delAsk=null;editDay(d=>{d.pairs=d.pairs.filter(x=>x.id!==id)})}
+    else{delAsk=id;render();setTimeout(()=>{if(delAsk===id){delAsk=null;render()}},4000)}}
+  else if(a==='nsok'){const nm=($('#ns').value||'').trim();if(!nm)return;const id=t.dataset.p;newFor=null;
+    if(!cfg.subjects.includes(nm)&&canWrite){cfg={...cfg,subjects:[...cfg.subjects,nm]};saveCfg()}
+    editDay(d=>{const pr=d.pairs.find(x=>x.id===id);if(!pr.was)pr.was=pr.subject;pr.subject=nm})}
+  else if(a==='mcur')setMonth(0);else if(a==='mprev')setMonth(-1);
+  else if(a==='csv')csv();else if(a==='sched')fillSched();
+  else if(a==='savecfg'){cfg={...cfg,students:lines('#cs'),subjects:lines('#cj')};saveCfg();t.textContent='Сохранено ✓';setTimeout(()=>{t.textContent='Сохранить'},1500)}
+});
+document.addEventListener('change',e=>{
+  const id=e.target.id;
+  if(id==='date'&&e.target.value){date=e.target.value;render()}
+  else if(id==='rf'&&e.target.value){rFrom=e.target.value;render()}
+  else if(id==='rt'&&e.target.value){rTo=e.target.value;render()}
+  else if(id==='rs'){rSubj=e.target.value;render()}
+  else if(e.target.classList.contains('ps2')){
+    let v=e.target.value;
+    if(v==='__new'){newFor=e.target.dataset.p;render();return}
+    editDay(d=>{const pr=d.pairs.find(x=>x.id===e.target.dataset.p);if(!pr.was)pr.was=pr.subject;pr.subject=v})}
+  else if(e.target.classList.contains('pc')){
+    editDay(d=>{const pr=d.pairs.find(x=>x.id===e.target.dataset.p);if(e.target.value)pr.cancel=e.target.value;else delete pr.cancel})}
+  else if(id==='wk'&&e.target.value){const m=mondayOf(iso(now));if(e.target.value==='2')m.setDate(m.getDate()-7);cfg={...cfg,w1:iso(m)};saveCfg();render()}
+});
+render();init();
+</script></body></html>
