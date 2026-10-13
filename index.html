@@ -149,7 +149,7 @@ function vRep(){
   <select id="rs"><option value="">Все предметы</option>${cfg.subjects.map(s=>`<option ${s===rSubj?'selected':''}>${esc(s)}</option>`).join('')}</select></div>
   <div class="row" style="margin-top:8px"><button class="btn" data-act="csv">Скачать CSV (Excel)</button><span class="mut">Пар: ${c.length}</span></div></div>`;
   if(!c.length)return h+'<div class="card mut">За выбранный период отметок нет.</div>';
-  h+='<div class="card scroll"><table><tr><th>Студент</th>'+c.map(x=>`<th title="${esc(x.p.subject)}">${short(x.d)}<br>${x.p.n}п<div class="sj">${esc(x.p.subject)}</div></th>`).join('')+'<th>Пропусков</th><th>Н/П</th><th>У/П</th><th>Посещ.</th></tr>';
+  h+='<div class="card scroll"><table><tr><th>Студент</th>'+c.map(x=>`<th${short(x.d)}<div class="sj">${esc(x.p.subject)}</div></th>`).join('')+'<th>Пропусков</th><th>Н/П</th><th>У/П</th><th>Посещ.</th></tr>';
   st.forEach((r,i)=>{
     h+=`<tr><td>${i+1}. ${esc(r.s)}</td>`+c.map(x=>{const m=x.p.marks[r.s];return `<td class="${m==='н'?'n':m==='б'?'b':''}">${m==='н'?'Н/П':m==='б'?'У/П':'·'}</td>`}).join('')+`<td><b>${r.miss}</b></td><td>${r.n}</td><td>${r.b}</td><td>${r.pct}%</td></tr>`;
   });
@@ -179,7 +179,7 @@ function shiftDate(k){const d=new Date(date+'T00:00:00');d.setDate(d.getDate()+k
 function setMonth(off){const y=now.getFullYear(),m=now.getMonth()+off;rFrom=iso(new Date(y,m,1));rTo=iso(new Date(y,m+1,0));render()}
 async function csv(){
   const c=cols(),st=stats(c),q=s=>'"'+String(s).replace(/"/g,'""')+'"';
-  const head=['Студент',...c.map(x=>fmt(x.d)+' '+x.p.n+'п '+x.p.subject),'Пропусков','Н/П','У/П','Посещаемость %'];
+  const head=['Студент',...c.map(x=>fmt(x.d)+' '+x.p.subject),'Пропусков','Н/П','У/П','Посещаемость %'];
   const rows=st.map((r,i)=>[(i+1)+'. '+r.s,...c.map(x=>{const m=x.p.marks[r.s];return m==='н'?'Н/П':m==='б'?'У/П':''}),r.miss,r.n,r.b,r.pct]);
   const data='\uFEFF'+[head,...rows].map(r=>r.map(q).join(';')).join('\r\n');
   const u=URL.createObjectURL(new Blob([data],{type:'text/csv;charset=utf-8'}));
