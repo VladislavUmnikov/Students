@@ -58,7 +58,7 @@ const timers={};let delAsk=null,newFor=null;
 function toast(m){let t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';t.style.cssText='position:fixed;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--tx);color:var(--bg);padding:12px;border-radius:10px;z-index:9;text-align:center';document.body.appendChild(t)}t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>{t.style.display='none'},3500)}
 window.alert=m=>toast(m);
 
-const SB_URL='ВСТАВЬТЕ_PROJECT_URL',SB_KEY='ВСТАВЬТЕ_ANON_KEY';
+const SB_URL='https://uzmpuhuwuwmdeqvpesgq.supabase.co',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6bXB1aHV3dXdtZGVxdnBlc2dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4Nzg2MDEsImV4cCI6MjEwNzQ1NDYwMX0.kbIr_aA4td9v5iviTCKztp3n6jB83gD43zEmQqNPsrQ';
 const H={apikey:SB_KEY,Authorization:'Bearer '+SB_KEY,'Content-Type':'application/json'};
 const dirty=new Set();let lastSig='';
 async function sb(path,opt){
